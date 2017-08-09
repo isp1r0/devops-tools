@@ -1,0 +1,17 @@
+{
+  "name": "devops-tools",
+  "version": "0.0.1",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^8.0.20",
+    "typescript": "^2.4.2"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node_modules/.bin/tsc -p ./ts-scripts",
+    "preversion": "npm run build",
+    "postversion": "git push origin HEAD && git push origin HEAD --tags && npm publish"
+  }
+}
