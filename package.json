@@ -1,6 +1,6 @@
 {
   "name": "devops-tools",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^8.0.20",
