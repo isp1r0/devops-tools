@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>STAND SERVER</title>
+    <style>
+
+        .content {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .round {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+
+        .round.fail {
+            background: rgb(220, 57, 18);
+        }
+
+        .round.success {
+            background: rgb(16, 150, 24);
+        }
+
+        .round.partial {
+            background: rgb(255, 153, 0);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="content">
+    {{{content}}}
+</div>
+
+</body>
+</html>

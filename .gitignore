@@ -1,3 +1,7 @@
 node_modules
 .idea
 dist
+tmp
+**/*.js
+**/*.map
+ts-scripts/meta.json

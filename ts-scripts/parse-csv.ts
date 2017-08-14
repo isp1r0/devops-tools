@@ -1,5 +1,6 @@
 import { writeFile } from 'fs';
 import { exec } from 'child_process';
+import { parseArguments } from './utils';
 
 
 const COLUMNS_FOR_PARSE = {
@@ -85,21 +86,6 @@ run(`curl "${options.url}"`)
         console.error(e.message);
         process.exit(1);
     });
-
-function parseArguments<T>(): T {
-    const result = Object.create(null);
-    process.argv.forEach((argument) => {
-        if (argument.includes('=')) {
-            const index = argument.indexOf('=');
-            const name = argument.substr(0, index);
-            const value = argument.substr(index + 1);
-            result[name] = value;
-        } else {
-            result[argument] = true;
-        }
-    });
-    return result;
-}
 
 function run(command: string) {
     return new Promise((resolve, reject) => {
