@@ -11,9 +11,16 @@ export class Router extends Application {
             '/': () => this.getIndexHTML(),
             '/index.html': () => this.getIndexHTML(),
             '/branch/:name': (params: { name: string }) => this.getBranchHTML(params),
+            '/branch/:name/commit/:commit/reinstall': (params: { name: string, commit: string }) => this.reinstall(params),
             '/branch/:name/commit/:commit': (params: { name: string, commit: string }) => this.getBuildsHTML(params),
             '/branch/:name/latest': (params: { name: string }) => this.getLatestBuildHTML(params)
         }
+    }
+
+    private reinstall(params: {name: string, commit: string}): Promise<string> {
+        return this.builder.install(params.name, params.commit, this.getLog()(params.name, params.commit)).then(() => {
+            return 'ok!';
+        }, () => 'fail');
     }
 
     private getIndexHTML(): Promise<string> {

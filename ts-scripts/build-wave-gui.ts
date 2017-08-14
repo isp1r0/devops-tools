@@ -57,6 +57,28 @@ export class Builder {
             });
     }
 
+    public install(branch: string, commit: string, log): Promise<void> {
+        const path = join(this.options.outDir, branch, commit);
+        const packageJsonPath = join(path, `WavesGUI-${commit}`);
+
+        return resolve(run('npm', ['--prefix', packageJsonPath, 'install'], log))
+            .then(() => {
+                return resolve(run(`${packageJsonPath}/node_modules/.bin/gulp`, [
+                    '--gulpfile',
+                    `${packageJsonPath}/gulpfile.js`,
+                    'all'
+                ], log));
+            })
+            .then((status) => {
+                if (!this.meta[branch]) {
+                    this.meta[branch] = [{ sha: commit, success: status }];
+                } else {
+                    this.meta[branch] = this.meta[branch].filter((item) => item.sha !== commit);
+                    this.meta[branch].push({ sha: commit, success: status });
+                }
+            });
+    }
+
     protected removeOldBranches(list: Array<Readonly<IBranch>>): Promise<Array<Readonly<IBranch>>> {
         const toRemove = Object.keys(this.meta).filter((name) => {
             return !list.some((branchData) => {
@@ -111,7 +133,6 @@ export class Builder {
     protected build(branch: IBranch, getLog: IGetLog): Promise<void> {
         console.log(`run create build for branch ${branch.name}`);
         const path = join(this.options.outDir, branch.name, branch.commit.sha);
-        const packageJsonPath = join(path, `WavesGUI-${branch.commit.sha}`);
         const log = getLog(branch.name, branch.commit.sha);
 
         return getCommitArchive(branch.commit.sha)
@@ -119,26 +140,7 @@ export class Builder {
                 console.log('extract archive');
                 return extractZIP(archive, path, log);
             })
-            .then(() => {
-                console.log('run npm install');
-                return resolve(run('npm', ['--prefix', packageJsonPath, 'install'], log))
-            })
-            .then(() => {
-                let status = true;
-                try {
-                    execSync(`${packageJsonPath}/node_modules/.bin/gulp ----gulpfile ${packageJsonPath} all`);
-                } catch (e) {
-                    status = false;
-                }
-                return status;
-            })
-            .then((status) => {
-                if (!this.meta[branch.name]) {
-                    this.meta[branch.name] = [{ sha: branch.commit.sha, success: status }];
-                } else {
-                    this.meta[branch.name].push({ sha: branch.commit.sha, success: status });
-                }
-            });
+            .then(() => this.install(branch.name, branch.commit.sha, log));
     }
 }
 

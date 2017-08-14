@@ -2,10 +2,10 @@ import * as connect from 'connect';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
 import { compile } from 'handlebars';
-import { readdir, readFile } from 'fs-extra';
+import { mkdirp, readdir, readFile } from 'fs-extra';
 import { exists } from '../ts-scripts/utils';
 import { Builder, IHash } from '../ts-scripts/build-wave-gui';
-import { getCommitsList } from '../ts-scripts/github-api';
+import { getBranchList, getCommitsList } from '../ts-scripts/github-api';
 import { StaticServer } from './StaticServer';
 
 
@@ -27,7 +27,7 @@ export abstract class Application {
     protected readonly options: IOptions;
     protected cacheBuild: IHash<ICacheItem>;
     protected cache: any;
-    private builder: Builder;
+    protected builder: Builder;
     private canRebuild: boolean;
 
 
@@ -45,7 +45,7 @@ export abstract class Application {
     }
 
     protected getBranchList(): Promise<Array<string>> {
-        return readdir(this.options.builds);
+        return getBranchList().then((list) => list.map((item) => item.name));
     }
 
     protected getCommitList(branch: string): Promise<Array<{ sha: string; message: string }>> {
@@ -95,6 +95,8 @@ export abstract class Application {
             } else {
                 return 'fail';
             }
+        }).catch(() => {
+            return 'fail' as 'fail';
         });
     }
 
@@ -121,10 +123,20 @@ export abstract class Application {
             } else {
                 return 'fail';
             }
+        }).catch(() => {
+            return 'fail' as 'fail';
         });
     }
 
     protected abstract getRouter(): IHash<(data: IHash<string>) => Promise<string>>;
+
+    protected getLog(): (branch: string, commit: string) => (...args: Array<any>) => void {
+        return (branch: string, commit: string) => {
+            return (...args: Array<string>) => {
+                console.log.apply(console, args);
+            }
+        };
+    }
 
     private runServer(): void {
         const app = connect();
@@ -167,24 +179,30 @@ export abstract class Application {
     }
 
     private addInterval(): void {
-        if (this.options.interval) {
+        const run = () => {
+            if (this.options.interval) {
 
-            const runHandler = () => {
-                this.builder.createBuilds(this.getLog()).then(() => {
-                    setTimeout(runHandler, this.options.interval);
-                });
-            };
+                const runHandler = () => {
+                    this.builder.createBuilds(this.getLog()).then(() => {
+                        setTimeout(runHandler, this.options.interval);
+                    });
+                };
 
-            setTimeout(runHandler, this.options.interval);
-        }
-    }
-
-    private getLog(): (branch: string, commit: string) => (...args: Array<any>) => void {
-        return (branch: string, commit: string) => {
-            return (...args: Array<string>) => {
-                console.log.apply(console, args);
+                setTimeout(runHandler, this.options.interval);
             }
         };
+
+        readdir(this.options.builds).then((list) => {
+            if (!list.length) {
+                this.builder.createBuilds(this.getLog()).then(run);
+            } else {
+                run();
+            }
+        }).catch(() => {
+            mkdirp(this.options.builds).then(() => {
+                this.builder.createBuilds(this.getLog()).then(run);
+            });
+        });
     }
 
     private getStaticServer(parsedHost: IProjectOptions): any {
