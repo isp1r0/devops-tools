@@ -25,12 +25,14 @@ const enum HOST_PARTS {
 export abstract class Application {
 
     protected readonly options: IOptions;
-    protected cache: IHash<ICacheItem>;
+    protected cacheBuild: IHash<ICacheItem>;
+    protected cache: any;
     private builder: Builder;
     private canRebuild: boolean;
 
 
     constructor(options: IOptions) {
+        this.cacheBuild = Object.create(null);
         this.cache = Object.create(null);
         this.options = options;
         if (this.options.interval == null) {
@@ -69,15 +71,57 @@ export abstract class Application {
                     connection,
                     type
                 };
-                const path = this.getBuildPath(hostData);
                 promises.push(this.checkHost(hostData).then((status) => {
-                    this.setCache(path, 'valid', status);
                     return { ...data, status };
                 }));
             });
         });
 
         return Promise.all(promises);
+    }
+
+    protected getCommitStatus(branch: string, commit: string): Promise<TStatus> {
+        return this.getBuildsList({ name: branch, commit }).then((list) => {
+            let successCount = 0;
+            list.forEach((item) => {
+                if (item.status) {
+                    successCount++;
+                }
+            });
+            if (successCount === list.length) {
+                return 'success';
+            } else if (successCount) {
+                return 'partial'
+            } else {
+                return 'fail';
+            }
+        });
+    }
+
+    protected getBranchStatus(branch: string): Promise<TStatus> {
+        return this.getCommitList(branch).then((list) => {
+            const promises = list.map((item) => {
+                return this.getCommitStatus(branch, item.sha);
+            });
+            return Promise.all(promises);
+        }).then((statuses) => {
+            let partial = 0;
+            let success = 0;
+            statuses.forEach((status) => {
+                if (status === 'success') {
+                    success++;
+                } else if (status === 'partial') {
+                    partial++;
+                }
+            });
+            if (success === statuses.length) {
+                return 'success';
+            } else if (partial) {
+                return 'partial';
+            } else {
+                return 'fail';
+            }
+        });
     }
 
     protected abstract getRouter(): IHash<(data: IHash<string>) => Promise<string>>;
@@ -145,13 +189,13 @@ export abstract class Application {
 
     private getStaticServer(parsedHost: IProjectOptions): any {
         const path = this.getBuildPath(parsedHost);
-        if (!this.cache[path]) {
-            this.cache[path] = Object.create(null);
+        if (!this.cacheBuild[path]) {
+            this.cacheBuild[path] = Object.create(null);
         }
-        if (!this.cache[path].serve) {
-            this.cache[path].serve = new StaticServer(this.getRoots(parsedHost));
+        if (!this.cacheBuild[path].serve) {
+            this.cacheBuild[path].serve = new StaticServer(this.getRoots(parsedHost));
         }
-        return this.cache[path].serve;
+        return this.cacheBuild[path].serve;
     }
 
     private getUrlHandler(url: string): () => Promise<string> {
@@ -201,18 +245,6 @@ export abstract class Application {
         ]
     }
 
-    private getCache(path: string): Partial<ICacheItem> {
-        if (!this.cache[path]) {
-            this.cache[path] = Object.create(null);
-        }
-        return this.cache[path];
-    }
-
-    private setCache<K extends keyof ICacheItem, V extends ICacheItem[K]>(path: string, key: K, value: V): void {
-        const cache = this.getCache(path);
-        cache[key] = value;
-    }
-
     protected static getCompiledText(dataPromise: Promise<any>, templatePath: string): Promise<string> {
         return Promise.all([dataPromise, Application.getTemplate(templatePath)]).then((data) => {
             const [params, template] = data;
@@ -221,13 +253,11 @@ export abstract class Application {
     }
 
     protected static getCompiledLinks(dataPromise: Promise<Array<ILinkItem>>): Promise<string> {
-        return Application.getCompiledText(dataPromise.then((data) => {
-            return { linkList: data };
-        }), PATHS.linkList);
+        return Application.getCompiledText(dataPromise, PATHS.linkList);
     }
 
     protected static getCompiledIndex(dataPromise: Promise<string>): Promise<string> {
-        return Application.getCompiledText(dataPromise.then((content) => ({content})), PATHS.index);
+        return Application.getCompiledText(dataPromise, PATHS.index);
     }
 
     private static getTemplate(templatePath: string): Promise<(data: any) => string> {
@@ -269,6 +299,8 @@ export abstract class Application {
 
 }
 
+export type TStatus = 'fail' | 'success' | 'partial';
+
 export interface IOptions {
     builds: string;
     port: string;
@@ -276,9 +308,6 @@ export interface IOptions {
 }
 
 export interface ICacheItem {
-    valid: boolean;
-    logs: string;
-    path: string;
     serve: StaticServer;
 }
 

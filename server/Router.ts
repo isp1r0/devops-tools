@@ -18,19 +18,39 @@ export class Router extends Application {
 
     private getIndexHTML(): Promise<string> {
         const branches = this.getBranchList()
-            .then((names) => names.map(name => ({ url: `./branch/${name}`, text: name })));
+            .then((names) => {
+                return Promise.all(names.map((name) => this.getBranchStatus(name)))
+                    .then((status) => {
+                        return names.map((name, i) => {
+                            return {
+                                url: `/branch/${name}`,
+                                text: name,
+                                status: status[i]
+                            };
+                        });
+                    });
+            });
 
         return Application.getCompiledIndex(Application.getCompiledLinks(branches));
     }
 
     private getBranchHTML(params: { name: string }): Promise<string> {
         const commits = this.getCommitList(params.name)
-            .then((commits) => commits.map((commit) => {
-                    return { url: `./${params.name}/commit/${commit.sha}`, text: commit.message };
-                }
-            ))
             .then((commits) => {
-                commits.push({ url: `./${params.name}/latest`, text: 'latest' });
+                return Promise.all(commits.map((item) => {
+                    return this.getCommitStatus(params.name, item.sha)
+                })).then((statuses) => {
+                    return commits.map((item, i) => {
+                        return {
+                            url: `./${params.name}/commit/${item.sha}`,
+                            text: item.message,
+                            status: statuses[i]
+                        }
+                    });
+                });
+            })
+            .then((commits) => {
+                commits.push({ url: `./${params.name}/latest`, text: 'latest', status: null });
                 return commits;
             });
 
@@ -60,7 +80,7 @@ export class Router extends Application {
 
             return commit;
         }).then((commit) => {
-            return this.getBuildsList({name: params.name, commit});
+            return this.getBuildsList({ name: params.name, commit });
         }).then((builds) => {
             return builds.map((item) => {
                 return { ...item, status: item.status ? 'success' : 'fail' };
