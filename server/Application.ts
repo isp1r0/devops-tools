@@ -7,6 +7,7 @@ import { exists } from '../ts-scripts/utils';
 import { Builder, IHash } from '../ts-scripts/build-wave-gui';
 import { getBranchList, getCommitsList } from '../ts-scripts/github-api';
 import { StaticServer } from './StaticServer';
+import { cached } from './decorators/catchable';
 
 
 export const PATHS = {
@@ -44,19 +45,37 @@ export abstract class Application {
         this.runServer();
     }
 
+    @cached
+    protected getLastCommit(branch: string): Promise<string> {
+        return getBranchList().then((branches) => {
+            let commit = null;
+            branches.some((item) => {
+                if (item.name === branch) {
+                    commit = item.commit.sha;
+                }
+                return !!commit;
+            });
+
+            return commit;
+        });
+    }
+
+    @cached
     protected getBranchList(): Promise<Array<string>> {
         return getBranchList().then((list) => list.map((item) => item.name));
     }
 
+    @cached
     protected getCommitList(branch: string): Promise<Array<{ sha: string; message: string }>> {
         return readdir(join(this.options.builds, branch))
             .then(getCommitsList)
     }
 
-    protected getBuildsList(params: { name: string; commit: string }): Promise<Array<{ url: string; text: string; status: boolean }>> {
+    protected getBuildsList(params: { name: string; commit: string }, latest?: boolean): Promise<Array<{ url: string; text: string; status: boolean }>> {
         const types = ['dev', 'normal', 'min'];
         const connects = ['mainnet', 'testnet'];
-        const { name, commit } = params;
+        const name = params.name;
+        const commit = latest ? 'latest' : params.commit;
         const promises = [];
 
         connects.forEach((connection) => {
@@ -142,8 +161,7 @@ export abstract class Application {
         const app = connect();
 
         app.use((req: IncomingMessage, res: ServerResponse, next: Function) => {
-            const parsedHost = Application.parseHost(req.headers.host as string);
-            if (parsedHost) {
+            this.parseHost(req.headers.host as string).then((parsedHost) => {
                 this.checkHost(parsedHost).then((exist: boolean) => {
                     if (exist) {
                         if (Application.isPage(req.url)) {
@@ -163,16 +181,18 @@ export abstract class Application {
                         res.end();
                     }
                 });
-            } else {
+            }, () => {
                 const handler = this.getUrlHandler(req.url);
                 if (handler) {
                     handler().then((text) => {
                         res.end(text);
+                    }, (e) => {
+                        console.log(e);
                     });
                 } else {
                     next();
                 }
-            }
+            });
         });
 
         createServer(app).listen(this.options.port);
@@ -205,6 +225,7 @@ export abstract class Application {
         });
     }
 
+    @cached
     private getStaticServer(parsedHost: IProjectOptions): any {
         const path = this.getBuildPath(parsedHost);
         if (!this.cacheBuild[path]) {
@@ -244,6 +265,7 @@ export abstract class Application {
         return handler;
     }
 
+    @cached
     private checkHost(hostParts: IProjectOptions): Promise<boolean> {
         return exists(this.getBuildPath(hostParts));
     }
@@ -254,6 +276,7 @@ export abstract class Application {
         return `${base}/${branch}/${commit}/WavesGUI-${commit}/dist/build/${connection}/${type}`;
     }
 
+    @cached
     private getRoots(params: IProjectOptions): Array<string> {
         const { branch, commit, connection, type } = params;
         const base = this.options.builds;
@@ -278,13 +301,15 @@ export abstract class Application {
         return Application.getCompiledText(dataPromise, PATHS.index);
     }
 
+    @cached
     private static getTemplate(templatePath: string): Promise<(data: any) => string> {
         return readFile(join(__dirname, templatePath), { encoding: 'utf8' }).then((fileText: string) => {
             return compile(fileText);
         });
     }
 
-    private static parseHost(host: string): IProjectOptions {
+    @cached
+    private parseHost(host: string): Promise<IProjectOptions> {
         const parts = host.split('.');
         parts.pop();
 
@@ -296,9 +321,15 @@ export abstract class Application {
         };
 
         if (Object.keys(result).map((name) => result[name]).every(Boolean)) {
-            return result;
+            if (result.commit === 'latest') {
+                return this.getLastCommit(result.branch).then((commit) => {
+                    return { ...result, commit };
+                });
+            } else {
+                return Promise.resolve(result);
+            }
         } else {
-            return null;
+            return Promise.reject(null);
         }
     }
 

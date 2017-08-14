@@ -1,7 +1,6 @@
 import { Application } from './Application';
 import { parseArguments } from '../ts-scripts/utils';
 import { IHash } from '../ts-scripts/build-wave-gui';
-import { getBranchList } from '../ts-scripts/github-api';
 
 
 export class Router extends Application {
@@ -17,7 +16,7 @@ export class Router extends Application {
         }
     }
 
-    private reinstall(params: {name: string, commit: string}): Promise<string> {
+    private reinstall(params: { name: string, commit: string }): Promise<string> {
         return this.builder.install(params.name, params.commit, this.getLog()(params.name, params.commit)).then(() => {
             return 'ok!';
         }, () => 'fail');
@@ -76,23 +75,14 @@ export class Router extends Application {
     }
 
     private getLatestBuildHTML(params: { name: string }): Promise<string> {
-        const links = getBranchList().then((branches) => {
-            let commit = null;
-            branches.some((item) => {
-                if (item.name === params.name) {
-                    commit = item.commit.sha;
-                }
-                return !!commit;
+        const links = this.getLastCommit(params.name)
+            .then((commit) => {
+                return this.getBuildsList({ name: params.name, commit }, true);
+            }).then((builds) => {
+                return builds.map((item) => {
+                    return { ...item, status: item.status ? 'success' : 'fail' };
+                });
             });
-
-            return commit;
-        }).then((commit) => {
-            return this.getBuildsList({ name: params.name, commit });
-        }).then((builds) => {
-            return builds.map((item) => {
-                return { ...item, status: item.status ? 'success' : 'fail' };
-            });
-        });
 
         return Application.getCompiledIndex(Application.getCompiledLinks(links));
     }
