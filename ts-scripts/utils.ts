@@ -49,6 +49,7 @@ export function exists(path: string): Promise<boolean> {
 
 export function processList<T>(list: Array<T>, processor: (item: T) => Promise<any>): Promise<any> {
 
+    list = list.slice();
     list.reverse();
 
     function iterate(): Promise<any> {
