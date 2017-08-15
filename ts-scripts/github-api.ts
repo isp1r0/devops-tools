@@ -1,5 +1,5 @@
 import { CoreOptions, get as requestGet, RequestResponse } from 'request';
-import {yellow} from 'colors';
+import { red, yellow } from 'colors/safe';
 
 
 export module GithubAPI {
@@ -14,6 +14,15 @@ export module GithubAPI {
         }
         console.warn(yellow('Request github: get branch list!'));
         cache.branchList = get('https://api.github.com/repos/wavesplatform/WavesGUI/branches');
+        cache.branchList.then((list) => {
+            if (list.length === 0) {
+                cache.branchList = null;
+                console.log(yellow('Empty branch list!'));
+            }
+        }, () => {
+            console.warn(red('Error get branch list!'));
+            cache.branchList = null;
+        });
         return cache.branchList;
 
     }
@@ -36,6 +45,10 @@ export module GithubAPI {
         cache.commitMessage[sha] = get(`https://api.github.com/repos/wavesplatform/WavesGUI/git/commits/${sha}`).then((commit: ICommit) => {
             return commit.message;
         });
+        cache.commitMessage[sha].catch((e) => {
+            console.warn(red('Error get commitMessage!'));
+            cache.commitMessage[sha] = null;
+        });
         return cache.commitMessage[sha];
     }
 
@@ -43,6 +56,9 @@ export module GithubAPI {
         return Promise.all(shaList.map((sha) => {
             return getCommitMessage(sha).then((message) => {
                 return { sha, message };
+            }, (e) => {
+                console.warn(red('Error get commit message!'));
+                return { sha, message: 'Not found!' };
             });
         }));
     }

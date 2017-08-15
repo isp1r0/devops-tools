@@ -8,6 +8,7 @@ import { Builder, IHash } from '../ts-scripts/build-wave-gui';
 import { GithubAPI } from '../ts-scripts/github-api';
 import { StaticServer } from './StaticServer';
 import { cached } from './decorators/cached';
+import { yellow } from 'colors/safe';
 
 
 export const PATHS = {
@@ -37,7 +38,7 @@ export abstract class Application {
         this.cache = Object.create(null);
         this.options = options;
         if (this.options.interval == null) {
-            this.options.interval = 1000 * 60;
+            this.options.interval = 5;
         }
         this.builder = new Builder({ outDir: this.options.builds });
         this.canRebuild = true;
@@ -60,7 +61,10 @@ export abstract class Application {
     }
 
     protected getBranchList(): Promise<Array<string>> {
-        return GithubAPI.getBranchList().then((list) => list.map((item) => item.name));
+        return GithubAPI.getBranchList().then((list) => {
+            console.log(`Branch list ${JSON.stringify(list, null, 4)}`);
+            return list.map((item) => item.name);
+        });
     }
 
     protected getCommitList(branch: string): Promise<Array<{ sha: string; message: string }>> {
@@ -89,6 +93,9 @@ export abstract class Application {
                 };
                 promises.push(this.checkHost(hostData).then((status) => {
                     return { ...data, status };
+                }, () => {
+                    console.warn(yellow('Check host error!'));
+                    return { ...data, status: false }
                 }));
             });
         });
@@ -119,7 +126,9 @@ export abstract class Application {
     protected getBranchStatus(branch: string): Promise<TStatus> {
         return this.getCommitList(branch).then((list) => {
             const promises = list.map((item) => {
-                return this.getCommitStatus(branch, item.sha);
+                return this.getCommitStatus(branch, item.sha).catch(() => {
+                    return false;
+                });
             });
             return Promise.all(promises);
         }).then((statuses) => {
@@ -184,6 +193,8 @@ export abstract class Application {
                     handler().then((text) => {
                         res.end(text);
                     }, (e) => {
+                        res.writeHead(404);
+                        res.end('Error!' + e.message);
                         console.log(e);
                     });
                 } else {
@@ -196,16 +207,17 @@ export abstract class Application {
     }
 
     private addInterval(): void {
+        const interval = this.options.interval * 1000 * 60;
         const run = () => {
             if (this.options.interval) {
 
                 const runHandler = () => {
                     this.builder.createBuilds(this.getLog()).then(() => {
-                        setTimeout(runHandler, this.options.interval);
+                        setTimeout(runHandler, interval);
                     });
                 };
 
-                setTimeout(runHandler, this.options.interval);
+                setTimeout(runHandler, interval);
             }
         };
 

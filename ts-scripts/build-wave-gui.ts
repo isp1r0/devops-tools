@@ -65,7 +65,7 @@ export class Builder {
             .then(() => {
                 try {
                     const logs = execSync(`${packageJsonPath}/node_modules/.bin/gulp --gulpfile ${packageJsonPath}/gulpfile.js all`);
-                    log(logs);
+                    log(String(logs));
                     return Promise.resolve(true);
                 } catch (e) {
                     log(e);
@@ -116,8 +116,8 @@ export class Builder {
             return Promise.all(list.map((branch) => {
                 const commits = hash[branch];
                 const toRemove = commits.slice(this.options.maxBuilds - 1);
-                console.log(`builds to remove: ${toRemove.join(', ')}`);
                 if (toRemove.length) {
+                    console.log(`builds to remove: ${toRemove.join(', ')}`);
                     const promises = toRemove.map((commit) => remove(join(this.options.outDir, branch, commit.sha)));
                     return Promise.all(promises).then(() => null);
                 } else {
@@ -129,7 +129,6 @@ export class Builder {
 
     protected isHasBuild(branch: IBranch): Promise<boolean> {
         console.log(`check is need load archive for branch ${branch.name} ${join(this.options.outDir, branch.name, branch.commit.sha)}`);
-        console.log(String(execSync('pwd')));
         return exists(join(this.options.outDir, branch.name, branch.commit.sha));
     }
 
