@@ -27,7 +27,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "node_modules/.bin/tsc -p ./ts-scripts",
+    "build": "node_modules/.bin/tsc -p ./",
     "preversion": "npm run build",
     "postversion": "git push origin HEAD && git push origin HEAD --tags && npm publish"
   }
