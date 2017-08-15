@@ -1,4 +1,4 @@
-import { getBranchList, getCommitArchive, IBranch } from './github-api';
+import { IBranch, GithubAPI } from './github-api';
 import { exists, extractZIP, parseArguments, processList, resolve, run } from './utils';
 import { join } from 'path';
 import { readJSON, remove, writeJSON } from 'fs-extra';
@@ -28,7 +28,7 @@ export class Builder {
         console.log('start rebuild');
         return this.getListBundles()
             .then((list) => this.cleanBuilds(list))
-            .then(getBranchList)
+            .then(() => GithubAPI.getBranchList(true))
             .then((list) => {
                 return this.removeOldBranches(list);
             })
@@ -135,7 +135,7 @@ export class Builder {
         const path = join(this.options.outDir, branch.name, branch.commit.sha);
         const log = getLog(branch.name, branch.commit.sha);
 
-        return getCommitArchive(branch.commit.sha)
+        return GithubAPI.getCommitArchive(branch.commit.sha)
             .then((archive: Buffer) => {
                 console.log('extract archive');
                 return extractZIP(archive, path, log);

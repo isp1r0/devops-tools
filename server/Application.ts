@@ -5,9 +5,9 @@ import { compile } from 'handlebars';
 import { mkdirp, readdir, readFile } from 'fs-extra';
 import { exists } from '../ts-scripts/utils';
 import { Builder, IHash } from '../ts-scripts/build-wave-gui';
-import { getBranchList, getCommitsList } from '../ts-scripts/github-api';
+import { GithubAPI } from '../ts-scripts/github-api';
 import { StaticServer } from './StaticServer';
-import { cached } from './decorators/catchable';
+import { cached } from './decorators/cached';
 
 
 export const PATHS = {
@@ -37,7 +37,7 @@ export abstract class Application {
         this.cache = Object.create(null);
         this.options = options;
         if (this.options.interval == null) {
-            this.options.interval = 1000 * 60 * 10;
+            this.options.interval = 1000 * 60;
         }
         this.builder = new Builder({ outDir: this.options.builds });
         this.canRebuild = true;
@@ -45,9 +45,8 @@ export abstract class Application {
         this.runServer();
     }
 
-    @cached
     protected getLastCommit(branch: string): Promise<string> {
-        return getBranchList().then((branches) => {
+        return GithubAPI.getBranchList().then((branches) => {
             let commit = null;
             branches.some((item) => {
                 if (item.name === branch) {
@@ -60,15 +59,13 @@ export abstract class Application {
         });
     }
 
-    @cached
     protected getBranchList(): Promise<Array<string>> {
-        return getBranchList().then((list) => list.map((item) => item.name));
+        return GithubAPI.getBranchList().then((list) => list.map((item) => item.name));
     }
 
-    @cached
     protected getCommitList(branch: string): Promise<Array<{ sha: string; message: string }>> {
         return readdir(join(this.options.builds, branch))
-            .then(getCommitsList)
+            .then(GithubAPI.getCommitsList)
     }
 
     protected getBuildsList(params: { name: string; commit: string }, latest?: boolean): Promise<Array<{ url: string; text: string; status: boolean }>> {
@@ -225,7 +222,6 @@ export abstract class Application {
         });
     }
 
-    @cached
     private getStaticServer(parsedHost: IProjectOptions): any {
         const path = this.getBuildPath(parsedHost);
         if (!this.cacheBuild[path]) {
@@ -265,7 +261,6 @@ export abstract class Application {
         return handler;
     }
 
-    @cached
     private checkHost(hostParts: IProjectOptions): Promise<boolean> {
         return exists(this.getBuildPath(hostParts));
     }
@@ -276,7 +271,6 @@ export abstract class Application {
         return `${base}/${branch}/${commit}/WavesGUI-${commit}/dist/build/${connection}/${type}`;
     }
 
-    @cached
     private getRoots(params: IProjectOptions): Array<string> {
         const { branch, commit, connection, type } = params;
         const base = this.options.builds;
@@ -308,7 +302,6 @@ export abstract class Application {
         });
     }
 
-    @cached
     private parseHost(host: string): Promise<IProjectOptions> {
         const parts = host.split('.');
         parts.pop();

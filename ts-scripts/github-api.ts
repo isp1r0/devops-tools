@@ -1,27 +1,63 @@
 import { CoreOptions, get as requestGet, RequestResponse } from 'request';
+import {yellow} from 'colors';
 
 
-export function getBranchList(): Promise<Array<Readonly<IBranch>>> {
-    return get('https://api.github.com/repos/wavesplatform/WavesGUI/branches');
-}
+export module GithubAPI {
 
-export function getCommitArchive(sha: string): Promise<Buffer> {
-    return getFile(`https://codeload.github.com/wavesplatform/WavesGUI/zip/${sha}`);
-}
+    const cache: ICache = Object.create(null);
+    cache.commitArchive = Object.create(null);
+    cache.commitMessage = Object.create(null);
 
-export function getCommitMessage(sha: string): Promise<string> {
-    return get(`https://api.github.com/repos/wavesplatform/WavesGUI/git/commits/${sha}`).then((commit: ICommit) => {
-        return commit.message;
-    });
-}
+    export function getBranchList(force?: boolean): Promise<Array<Readonly<IBranch>>> {
+        if (cache.branchList && !force) {
+            return cache.branchList;
+        }
+        console.warn(yellow('Request github: get branch list!'));
+        cache.branchList = get('https://api.github.com/repos/wavesplatform/WavesGUI/branches');
+        return cache.branchList;
 
-export function getCommitsList(shaList: Array<string>): Promise<Array<{ sha: string, message: string }>> {
-    return Promise.all(shaList.map((sha) => {
-        return getCommitMessage(sha).then((message) => {
-            return { sha, message };
+    }
+
+    export function getCommitArchive(sha: string): Promise<Buffer> {
+        if (cache.commitArchive[sha]) {
+            return cache.commitArchive[sha];
+        }
+        console.warn(yellow(`Request github: get archive by commit "${sha}"!`));
+        cache.commitArchive[sha] = getFile(`https://codeload.github.com/wavesplatform/WavesGUI/zip/${sha}`);
+        return cache.commitArchive[sha];
+
+    }
+
+    export function getCommitMessage(sha: string): Promise<string> {
+        if (cache.commitMessage[sha]) {
+            return cache.commitMessage[sha];
+        }
+        console.warn(yellow(`Request github: get commit message for commit "${sha}"!`));
+        cache.commitMessage[sha] = get(`https://api.github.com/repos/wavesplatform/WavesGUI/git/commits/${sha}`).then((commit: ICommit) => {
+            return commit.message;
         });
-    }));
+        return cache.commitMessage[sha];
+    }
+
+    export function getCommitsList(shaList: Array<string>): Promise<Array<{ sha: string, message: string }>> {
+        return Promise.all(shaList.map((sha) => {
+            return getCommitMessage(sha).then((message) => {
+                return { sha, message };
+            });
+        }));
+    }
+
+    interface ICache {
+        branchList: Promise<Array<Readonly<IBranch>>>;
+        commitArchive: {
+            [commit: string]: Promise<Buffer>;
+        }
+        commitMessage: {
+            [commit: string]: Promise<string>;
+        }
+    }
 }
+
 
 export interface IBranch {
     name: string;
