@@ -1,4 +1,4 @@
-import { IBranch, GithubAPI } from './github-api';
+import { GithubAPI, IBranch } from './github-api';
 import { exists, extractZIP, parseArguments, processList, resolve, run } from './utils';
 import { join } from 'path';
 import { readJSON, remove, writeJSON } from 'fs-extra';
@@ -63,11 +63,14 @@ export class Builder {
 
         return resolve(run('npm', ['--prefix', packageJsonPath, 'install'], log))
             .then(() => {
-                return resolve(run(`${packageJsonPath}/node_modules/.bin/gulp`, [
-                    '--gulpfile',
-                    `${packageJsonPath}/gulpfile.js`,
-                    'all'
-                ], log));
+                try {
+                    const logs = execSync(`${packageJsonPath}/node_modules/.bin/gulp --gulpfile ${packageJsonPath}/gulpfile.js all`);
+                    log(logs);
+                    return Promise.resolve(true);
+                } catch (e) {
+                    log(e);
+                    return Promise.resolve(false);
+                }
             })
             .then((status) => {
                 if (!this.meta[branch]) {
