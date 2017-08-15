@@ -4,6 +4,11 @@ import { red, yellow } from 'colors/safe';
 
 export module GithubAPI {
 
+    const BRANCHES_BLACK_LIST = [
+        'aliases',
+        'master'
+    ];
+
     const cache: ICache = Object.create(null);
     cache.commitArchive = Object.create(null);
     cache.commitMessage = Object.create(null);
@@ -13,7 +18,10 @@ export module GithubAPI {
             return cache.branchList;
         }
         console.warn(yellow('Request github: get branch list!'));
-        cache.branchList = get('https://api.github.com/repos/wavesplatform/WavesGUI/branches');
+        cache.branchList = (get('https://api.github.com/repos/wavesplatform/WavesGUI/branches') as Promise<Array<Readonly<IBranch>>>)
+            .then((list) => {
+                return list.filter((item) => BRANCHES_BLACK_LIST.indexOf(item.name) === -1);
+            });
         cache.branchList.then((list) => {
             if (list.length === 0) {
                 cache.branchList = null;

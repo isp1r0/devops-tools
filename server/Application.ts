@@ -62,7 +62,6 @@ export abstract class Application {
 
     protected getBranchList(): Promise<Array<string>> {
         return GithubAPI.getBranchList().then((list) => {
-            console.log(`Branch list ${JSON.stringify(list, null, 4)}`);
             return list.map((item) => item.name);
         });
     }
