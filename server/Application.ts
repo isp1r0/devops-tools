@@ -27,7 +27,7 @@ const enum HOST_PARTS {
 export abstract class Application {
 
     protected readonly options: IOptions;
-    protected  hostName: string;
+    protected hostName: string;
     protected cacheBuild: IHash<ICacheItem>;
     protected cache: any;
     protected builder: Builder;
@@ -169,9 +169,7 @@ export abstract class Application {
         app.use((req: IncomingMessage, res: ServerResponse, next: Function) => {
 
             if (!this.hostName) {
-                let host = req.headers.host as string;
-                host = host.replace(`:${this.options.port}`, '');
-                this.hostName = host.split('.').pop();
+                this.hostName = Application.getHostConstant(req.headers.host as string, this.options.port, this.options.hostName);
             }
 
             this.parseHost(req.headers.host as string).then((parsedHost) => {
@@ -358,6 +356,20 @@ export abstract class Application {
         });
     }
 
+    private static getHostConstant(host: string, port: string, hostName: string): string {
+        host = host.replace(`:${port}`, '');
+        const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        if (ipPattern.test(host)) {
+            return host;
+        } else {
+            if (hostName) {
+                return hostName;
+            } else {
+                throw new Error('No host name in params, no ip!');
+            }
+        }
+    }
+
 }
 
 export type TStatus = 'fail' | 'success' | 'partial';
@@ -366,6 +378,7 @@ export interface IOptions {
     builds: string;
     port: string;
     interval?: number;
+    hostName?: string;
 }
 
 export interface ICacheItem {
