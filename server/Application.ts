@@ -27,6 +27,7 @@ const enum HOST_PARTS {
 export abstract class Application {
 
     protected readonly options: IOptions;
+    protected  hostName: string;
     protected cacheBuild: IHash<ICacheItem>;
     protected cache: any;
     protected builder: Builder;
@@ -81,7 +82,7 @@ export abstract class Application {
         connects.forEach((connection) => {
             types.forEach((type) => {
                 const data = {
-                    url: `http://${name}.${commit}.${connection}.${type}.localhost:${this.options.port}`,
+                    url: `http://${name}.${commit}.${connection}.${type}.${this.hostName}:${this.options.port}`,
                     text: `Branch: "${name}"` + '\n' + `commit: ${commit}` + '\n' + `${connection} ${type}`
                 };
                 const hostData = {
@@ -166,6 +167,13 @@ export abstract class Application {
         const app = connect();
 
         app.use((req: IncomingMessage, res: ServerResponse, next: Function) => {
+
+            if (!this.hostName) {
+                let host = req.headers.host as string;
+                host = host.replace(`:${this.options.port}`, '');
+                this.hostName = host.split('.').pop();
+            }
+
             this.parseHost(req.headers.host as string).then((parsedHost) => {
                 this.checkHost(parsedHost).then((exist: boolean) => {
                     if (exist) {
