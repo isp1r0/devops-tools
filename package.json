@@ -1,6 +1,6 @@
 {
   "name": "devops-tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "dependencies": {
     "@types/handlebars": "^4.0.35",
     "handlebars": "^4.0.10"
