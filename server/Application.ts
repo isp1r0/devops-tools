@@ -208,7 +208,7 @@ export abstract class Application {
             });
         });
 
-        createServer(app).listen(this.options.port);
+        createServer(app).listen(this.options.port, '127.0.0.1' as any);
     }
 
     private addInterval(): void {
