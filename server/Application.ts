@@ -172,7 +172,9 @@ export abstract class Application {
                 this.hostName = Application.getHostConstant(req.headers.host as string, this.options.port, this.options.hostName);
             }
 
+            console.log(req.headers.host);
             this.parseHost(req.headers.host as string).then((parsedHost) => {
+                console.log(JSON.stringify(parsedHost));
                 this.checkHost(parsedHost).then((exist: boolean) => {
                     if (exist) {
                         if (Application.isPage(req.url)) {
@@ -187,7 +189,7 @@ export abstract class Application {
                         }
                     } else {
                         res.writeHead(302, {
-                            Location: Application.getDefaultUrl(req.headers.host as string)
+                            Location: Application.getDefaultUrl(this.hostName)
                         });
                         res.end();
                     }
@@ -344,7 +346,7 @@ export abstract class Application {
     }
 
     private static getDefaultUrl(host: string): string {
-        return `http://${host.split('.').pop()}`;
+        return `http://${host}`;
     }
 
     private static isPage(url: string): boolean {
