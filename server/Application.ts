@@ -177,11 +177,12 @@ export abstract class Application {
                 console.log(JSON.stringify(parsedHost));
                 this.checkHost(parsedHost).then((exist: boolean) => {
                     if (exist) {
-                        if (Application.isPage(req.url)) {
-                            readFile(this.getBuildPath(parsedHost) + '/index.html')
-                                .then((text) => {
-                                    res.end(text);
-                                });
+                        const utils = Application.getUtils(this.options.builds, parsedHost);
+                        if (utils.isPage(req.url)) {
+                            utils.route({ connectionType: parsedHost.connection, buildType: parsedHost.type })
+                                .then((file) => {
+                                    res.end(file);
+                                })
                         } else {
                             req.addListener('end', () => {
                                 this.getStaticServer(parsedHost).serve(req, res);
@@ -321,6 +322,13 @@ export abstract class Application {
         });
     }
 
+    private static getUtils(base: string, parsed: IProjectOptions): {
+        isPage(url: string): boolean;
+        route(data: { connectionType: string; buildType: string; }): Promise<string>
+    } {
+        return require(`${base}/${parsed.branch}/${parsed.commit}/WavesGUI-${parsed.commit}/ts-scripts/utils.js`);
+    }
+
     private parseHost(host: string): Promise<IProjectOptions> {
         const parts = host.split('.');
         parts.pop();
@@ -351,7 +359,7 @@ export abstract class Application {
 
     private static isPage(url: string): boolean {
         const staticPathPartial = [
-            'img', 'css', 'fonts', 'js', 'bower_components', 'node_modules'
+            'img', 'css', 'fonts', 'js', 'bower_components', 'node_modules', 'src'
         ];
         return !staticPathPartial.some((path) => {
             return url.includes(`/${path}/`);
