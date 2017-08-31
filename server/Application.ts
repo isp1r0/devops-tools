@@ -1,6 +1,6 @@
 import * as connect from 'connect';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { join } from 'path';
+import { isAbsolute, join } from 'path';
 import { compile } from 'handlebars';
 import { mkdirp, readdir, readFile } from 'fs-extra';
 import { exists } from '../ts-scripts/utils';
@@ -37,7 +37,10 @@ export abstract class Application {
     constructor(options: IOptions) {
         this.cacheBuild = Object.create(null);
         this.cache = Object.create(null);
-        this.options = options;
+        this.options = { ...options };
+        if (!isAbsolute(this.options.builds)) {
+            this.options.builds = join(process.cwd(), this.options.builds);
+        }
         if (this.options.interval == null) {
             this.options.interval = 5;
         }
@@ -172,9 +175,7 @@ export abstract class Application {
                 this.hostName = Application.getHostConstant(req.headers.host as string, this.options.port, this.options.hostName);
             }
 
-            console.log(req.headers.host);
             this.parseHost(req.headers.host as string).then((parsedHost) => {
-                console.log(JSON.stringify(parsedHost));
                 this.checkHost(parsedHost).then((exist: boolean) => {
                     if (exist) {
                         const utils = Application.getUtils(this.options.builds, parsedHost);
@@ -296,6 +297,7 @@ export abstract class Application {
         const base = this.options.builds;
         return [
             `${base}/${branch}/${commit}/WavesGUI-${commit}/dist/build/${connection}/${type}`,
+            `${base}/${branch}/${commit}/WavesGUI-${commit}/src`,
             `${base}/${branch}/${commit}/WavesGUI-${commit}`,
         ]
     }
