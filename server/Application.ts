@@ -179,16 +179,7 @@ export abstract class Application {
                 this.checkHost(parsedHost).then((exist: boolean) => {
                     if (exist) {
                         const utils = Application.getUtils(this.options.builds, parsedHost);
-                        if (utils.isPage(req.url)) {
-                            utils.route({ connectionType: parsedHost.connection, buildType: parsedHost.type })
-                                .then((file) => {
-                                    res.end(file);
-                                })
-                        } else {
-                            req.addListener('end', () => {
-                                this.getStaticServer(parsedHost).serve(req, res);
-                            }).resume();
-                        }
+                        utils.route(parsedHost.connection, parsedHost.type)(req, res, next);
                     } else {
                         res.writeHead(302, {
                             Location: Application.getDefaultUrl(this.hostName)
@@ -324,10 +315,7 @@ export abstract class Application {
         });
     }
 
-    private static getUtils(base: string, parsed: IProjectOptions): {
-        isPage(url: string): boolean;
-        route(data: { connectionType: string; buildType: string; }): Promise<string>
-    } {
+    private static getUtils(base: string, parsed: IProjectOptions): any {
         return require(`${base}/${parsed.branch}/${parsed.commit}/WavesGUI-${parsed.commit}/ts-scripts/utils.js`);
     }
 
