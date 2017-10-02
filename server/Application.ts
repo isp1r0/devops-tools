@@ -203,8 +203,8 @@ export abstract class Application {
             });
         });
 
-        const key = readFileSync(join(this.certificatePath, 'privatekey.pem')).toString();
-        const cert = readFileSync(join(this.certificatePath, 'certificate.pem')).toString();
+        const key = readFileSync(join(this.options.certificatePath, 'privatekey.pem')).toString();
+        const cert = readFileSync(join(this.options.certificatePath, 'certificate.pem')).toString();
 
         createServer({ key, cert }, app).listen(this.options.port, '0.0.0.0' as any);
     }
