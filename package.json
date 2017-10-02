@@ -1,6 +1,6 @@
 {
   "name": "devops-tools",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "dependencies": {
     "handlebars": "^4.0.10",
     "adm-zip": "^0.4.7",
