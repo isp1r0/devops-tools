@@ -16,7 +16,7 @@ export class Builder {
         this.options = Object.create(null);
         this.options.outDir = options.outDir;
         this.options.maxBuilds = options.maxBuilds || 50;
-        this.metaPath = join(__dirname, 'meta.json');
+        this.metaPath = this.options.outDir;
 
         if (!this.options.outDir) {
             console.error('No out path!');
@@ -159,6 +159,7 @@ if (params.outDir) {
 
 export interface IOptions {
     outDir: string;
+    metaPath: string;
     maxBuilds?: number;
 }
 
