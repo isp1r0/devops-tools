@@ -1,14 +1,14 @@
+import { createServer, IncomingMessage, ServerResponse } from 'https';
 import * as connect from 'connect';
-import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { isAbsolute, join } from 'path';
 import { compile } from 'handlebars';
 import { mkdirp, readdir, readFile } from 'fs-extra';
 import { exists } from '../ts-scripts/utils';
 import { Builder, IHash } from '../ts-scripts/build-wave-gui';
 import { GithubAPI } from '../ts-scripts/github-api';
-import { StaticServer } from './StaticServer';
 import { cached } from './decorators/cached';
 import { yellow } from 'colors/safe';
+import { readFileSync } from 'fs';
 
 
 export const PATHS = {
@@ -28,18 +28,19 @@ export abstract class Application {
 
     protected readonly options: IOptions;
     protected hostName: string;
-    protected cacheBuild: IHash<ICacheItem>;
     protected cache: any;
     protected builder: Builder;
     private canRebuild: boolean;
 
 
     constructor(options: IOptions) {
-        this.cacheBuild = Object.create(null);
         this.cache = Object.create(null);
         this.options = { ...options };
         if (!isAbsolute(this.options.builds)) {
             this.options.builds = join(process.cwd(), this.options.builds);
+        }
+        if (!isAbsolute(this.options.certificatePath)) {
+            this.options.certificatePath = join(process.cwd(), this.options.certificatePath);
         }
         if (this.options.interval == null) {
             this.options.interval = 5;
@@ -71,8 +72,7 @@ export abstract class Application {
     }
 
     protected getCommitList(branch: string): Promise<Array<{ sha: string; message: string }>> {
-        return readdir(join(this.options.builds, branch))
-            .then(GithubAPI.getCommitsList)
+        return this.builder.getCommitsList(branch).then(GithubAPI.getCommitsList);
     }
 
     protected getBuildsList(params: { name: string; commit: string }, latest?: boolean): Promise<Array<{ url: string; text: string; status: boolean }>> {
@@ -203,7 +203,10 @@ export abstract class Application {
             });
         });
 
-        createServer(app).listen(this.options.port, '0.0.0.0' as any);
+        const key = readFileSync(join(this.certificatePath, 'privatekey.pem')).toString();
+        const cert = readFileSync(join(this.certificatePath, 'certificate.pem')).toString();
+
+        createServer({ key, cert }, app).listen(this.options.port, '0.0.0.0' as any);
     }
 
     private addInterval(): void {
@@ -232,17 +235,6 @@ export abstract class Application {
                 this.builder.createBuilds(this.getLog()).then(run);
             });
         });
-    }
-
-    private getStaticServer(parsedHost: IProjectOptions): any {
-        const path = this.getBuildPath(parsedHost);
-        if (!this.cacheBuild[path]) {
-            this.cacheBuild[path] = Object.create(null);
-        }
-        if (!this.cacheBuild[path].serve) {
-            this.cacheBuild[path].serve = new StaticServer(this.getRoots(parsedHost));
-        }
-        return this.cacheBuild[path].serve;
     }
 
     private getUrlHandler(url: string): () => Promise<string> {
@@ -379,10 +371,7 @@ export interface IOptions {
     port: string;
     interval?: number;
     hostName?: string;
-}
-
-export interface ICacheItem {
-    serve: StaticServer;
+    certificatePath?: string;
 }
 
 export interface ILinkItem {

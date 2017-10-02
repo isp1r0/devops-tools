@@ -24,6 +24,12 @@ export class Builder {
         }
     }
 
+    public getCommitsList(branch: string): Promise<Array<string>> {
+        return this.getListBundles().then((data: TMeta) => {
+            return data.branch.map(item => item.sha);
+        });
+    }
+
     public createBuilds(getLog: IGetLog): Promise<void> {
         console.log('start rebuild');
         return this.getListBundles()
