@@ -159,7 +159,6 @@ if (params.outDir) {
 
 export interface IOptions {
     outDir: string;
-    metaPath: string;
     maxBuilds?: number;
 }
 
