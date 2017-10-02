@@ -16,7 +16,7 @@ export class Builder {
         this.options = Object.create(null);
         this.options.outDir = options.outDir;
         this.options.maxBuilds = options.maxBuilds || 50;
-        this.metaPath = this.options.outDir;
+        this.metaPath = join(this.options.outDir, 'meta.json');
 
         if (!this.options.outDir) {
             console.error('No out path!');
