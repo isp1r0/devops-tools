@@ -26,7 +26,7 @@ export class Builder {
 
     public getCommitsList(branch: string): Promise<Array<string>> {
         return this.getListBundles().then((data: TMeta) => {
-            return data.branch.map(item => item.sha);
+            return data[branch].map(item => item.sha);
         });
     }
 
