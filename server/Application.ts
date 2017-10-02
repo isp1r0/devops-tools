@@ -39,8 +39,12 @@ export abstract class Application {
         if (!isAbsolute(this.options.builds)) {
             this.options.builds = join(process.cwd(), this.options.builds);
         }
-        if (!isAbsolute(this.options.certificatePath)) {
-            this.options.certificatePath = join(process.cwd(), this.options.certificatePath);
+        if (this.options.certificatePath) {
+            if (!isAbsolute(this.options.certificatePath)) {
+                this.options.certificatePath = join(process.cwd(), this.options.certificatePath);
+            }
+        } else {
+            this.options.certificatePath = join(__dirname, '..');
         }
         if (this.options.interval == null) {
             this.options.interval = 5;
