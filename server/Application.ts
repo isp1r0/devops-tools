@@ -31,7 +31,7 @@ export abstract class Application {
     protected cache: any;
     protected builder: Builder;
     private canRebuild: boolean;
-    private timer: number;
+    private timer: any;
 
 
     constructor(options: IOptions) {
