@@ -31,6 +31,7 @@ export abstract class Application {
     protected cache: any;
     protected builder: Builder;
     private canRebuild: boolean;
+    private timer: number;
 
 
     constructor(options: IOptions) {
@@ -89,7 +90,7 @@ export abstract class Application {
         connects.forEach((connection) => {
             types.forEach((type) => {
                 const data = {
-                    url: `http://${name}.${commit}.${connection}.${type}.${this.hostName}:${this.options.port}`,
+                    url: `https://${name}.${commit}.${connection}.${type}.${this.hostName}:80`,
                     text: `Branch: "${name}"` + '\n' + `commit: ${commit}` + '\n' + `${connection} ${type}`
                 };
                 const hostData = {
@@ -102,7 +103,7 @@ export abstract class Application {
                     return { ...data, status };
                 }, () => {
                     console.warn(yellow('Check host error!'));
-                    return { ...data, status: false }
+                    return { ...data, status: false };
                 }));
             });
         });
@@ -121,7 +122,7 @@ export abstract class Application {
             if (successCount === list.length) {
                 return 'success';
             } else if (successCount) {
-                return 'partial'
+                return 'partial';
             } else {
                 return 'fail';
             }
@@ -166,8 +167,12 @@ export abstract class Application {
         return (branch: string, commit: string) => {
             return (...args: Array<string>) => {
                 console.log.apply(console, args);
-            }
+            };
         };
+    }
+
+    protected rebuild() {
+        this.addInterval();
     }
 
     private runServer(): void {
@@ -214,17 +219,20 @@ export abstract class Application {
     }
 
     private addInterval(): void {
+        this.stopTimer();
         const interval = this.options.interval * 1000 * 60;
         const run = () => {
             if (this.options.interval) {
 
                 const runHandler = () => {
+                    this.stopTimer();
                     this.builder.createBuilds(this.getLog()).then(() => {
-                        setTimeout(runHandler, interval);
+                        this.timer = setTimeout(runHandler, interval);
                     });
                 };
 
-                setTimeout(runHandler, interval);
+                this.stopTimer();
+                this.timer = setTimeout(runHandler, interval);
             }
         };
 
@@ -239,6 +247,13 @@ export abstract class Application {
                 this.builder.createBuilds(this.getLog()).then(run);
             });
         });
+    }
+
+    private stopTimer() {
+        if (this.timer) {
+            clearTimeout(this.timer);
+            this.timer = null;
+        }
     }
 
     private getUrlHandler(url: string): () => Promise<string> {
@@ -260,7 +275,7 @@ export abstract class Application {
             if (partsRoute.length === partsUrl.length && partsRoute.every(isEqual)) {
                 handler = function () {
                     return route[item](params);
-                }
+                };
             }
 
             return !!handler;
@@ -286,14 +301,14 @@ export abstract class Application {
             `${base}/${branch}/${commit}/WavesGUI-${commit}/dist/build/${connection}/${type}`,
             `${base}/${branch}/${commit}/WavesGUI-${commit}/src`,
             `${base}/${branch}/${commit}/WavesGUI-${commit}`,
-        ]
+        ];
     }
 
     protected static getCompiledText(dataPromise: Promise<any>, templatePath: string): Promise<string> {
         return Promise.all([dataPromise, Application.getTemplate(templatePath)]).then((data) => {
             const [params, template] = data;
             return template(params);
-        })
+        });
     }
 
     protected static getCompiledLinks(dataPromise: Promise<Array<ILinkItem>>): Promise<string> {
@@ -340,7 +355,7 @@ export abstract class Application {
     }
 
     private static getDefaultUrl(host: string): string {
-        return `http://${host}`;
+        return `https://${host}:80/`;
     }
 
     private static isPage(url: string): boolean {

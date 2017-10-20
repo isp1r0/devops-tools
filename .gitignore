@@ -6,3 +6,4 @@ tmp
 **/*.map
 ts-scripts/meta.json
 **/**.DsStore
+devops-tools.iml

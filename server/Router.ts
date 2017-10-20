@@ -9,11 +9,17 @@ export class Router extends Application {
         return {
             '/': () => this.getIndexHTML(),
             '/index.html': () => this.getIndexHTML(),
+            '/rebuild': () => this.rebuild(),
             '/branch/:name': (params: { name: string }) => this.getBranchHTML(params),
             '/branch/:name/commit/:commit/reinstall': (params: { name: string, commit: string }) => this.reinstall(params),
             '/branch/:name/commit/:commit': (params: { name: string, commit: string }) => this.getBuildsHTML(params),
             '/branch/:name/latest': (params: { name: string }) => this.getLatestBuildHTML(params)
-        }
+        };
+    }
+
+    protected rebuild() {
+        super.rebuild();
+        return Promise.resolve('started');
     }
 
     private reinstall(params: { name: string, commit: string }): Promise<string> {
@@ -44,14 +50,14 @@ export class Router extends Application {
         const commits = this.getCommitList(params.name)
             .then((commits) => {
                 return Promise.all(commits.map((item) => {
-                    return this.getCommitStatus(params.name, item.sha)
+                    return this.getCommitStatus(params.name, item.sha);
                 })).then((statuses) => {
                     return commits.map((item, i) => {
                         return {
                             url: `./${params.name}/commit/${item.sha}`,
                             text: item.message,
                             status: statuses[i]
-                        }
+                        };
                     });
                 });
             })
@@ -67,7 +73,7 @@ export class Router extends Application {
         const links = this.getBuildsList(params).then((list) => {
             return list.map((item) => {
                 return { ...item, status: item.status ? 'success' : 'fail' };
-            })
+            });
         });
         const contentPromise = Application.getCompiledLinks(links);
 
