@@ -54,7 +54,7 @@ export module GithubAPI {
             return commit.message;
         });
         cache.commitMessage[sha].catch((e) => {
-            console.warn(red('Error get commitMessage!'));
+            console.warn(red('Error get commitMessage! ' + e.message));
             cache.commitMessage[sha] = null;
         });
         return cache.commitMessage[sha];
